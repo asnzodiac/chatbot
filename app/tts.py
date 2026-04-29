@@ -30,15 +30,36 @@ class TTSService:
         return m.hexdigest()
 
     def voice_for_lang(self, lang: str) -> list[str]:
-        # Required voices:
-        # English → en-GB-RyanNeural
-        # Malayalam → best available
-        # Manglish → English voice
+        """
+        Voice selection:
+        - English  -> Jarvis-style male voice (en-US-GuyNeural) first
+        - Manglish -> same Jarvis voice first
+        - Malayalam -> Malayalam voices first; fallback to Jarvis/English voices
+        """
+        jarvis_voice = "en-US-GuyNeural"
+
         if lang == "ml":
-            return ["ml-IN-MidhunNeural", "ml-IN-SobhanaNeural", "en-IN-PrabhatNeural", "en-GB-RyanNeural"]
+            return [
+                "ml-IN-MidhunNeural",
+                "ml-IN-SobhanaNeural",
+                jarvis_voice,
+                "en-IN-PrabhatNeural",
+                "en-GB-RyanNeural",
+            ]
+
         if lang == "manglish":
-            return ["en-IN-PrabhatNeural", "en-GB-RyanNeural"]
-        return ["en-GB-RyanNeural", "en-IN-PrabhatNeural"]
+            return [
+                jarvis_voice,
+                "en-IN-PrabhatNeural",
+                "en-GB-RyanNeural",
+            ]
+
+        # Default: English
+        return [
+            jarvis_voice,
+            "en-GB-RyanNeural",
+            "en-IN-PrabhatNeural",
+        ]
 
     def synthesize(self, text: str, lang: str) -> TTSResult:
         text = (text or "").strip()
@@ -52,6 +73,8 @@ class TTSService:
         for voice in self.voice_for_lang(lang):
             h = self._hash(voice, text)
             out_path = os.path.join(self.cache_dir, f"{h}.mp3")
+
+            # Cache hit
             if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
                 return TTSResult(ok=True, path=out_path, error=None)
 
